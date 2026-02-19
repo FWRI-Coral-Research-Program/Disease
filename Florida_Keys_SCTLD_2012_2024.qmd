@@ -1,0 +1,262 @@
+---
+title: "Florida_Keys_SCTLD_2012_2024"
+author: "Maddy Enda"
+format: html
+editor: visual
+---
+
+# Stony Coral Tissue Loss Disease: Florida Keys National Marine Sanctuary, Dry Tortugas National Park, and Southeastern Florida
+
+### Author: Madison Enda
+
+### Created: 02/19/2026
+
+## Overview:
+
+In this script, we will be summarizing the observations of colonies with Stony Coral Tissue Loss Disease (SCTLD) from 2012 to 2024. A
+
+
+## Import packages
+
+```{r}
+# Using librarian::shelf to import many libraries at once
+librarian::shelf(tidyverse, dplyr, here, readxl, purrr, openxlsx)
+```
+
+
+## Read in the files from Microsoft Access
+
+```{r}
+# Use read_excel() to load in the fknms data on sctld
+fk_sctld <- read_excel("C:/Users/Madison.Enda/Desktop/Microsoft_Access_Files/fFKNMS_ColoniesConditions_NoTemplate.xlsx")
+
+# Use read_excel() to load in the files on southeastern florida sctld
+sf_sctld <- read_excel("C:/Users/Madison.Enda/Desktop/Microsoft_Access_Files/zzz_ColoniesConditions_NoTemplate.xlsx")
+```
+
+# Florida Keys and Dry Tortugas:
+
+## Filter to only observations of our 9 coral species of interest
+
+```{r}
+# Pull out any species we are not interested in
+fk_sctld_filtered <- fk_sctld %>%
+  filter(SPP_CODE %in% c("CNAT",
+                         "DLAB",
+                         "PSTR",
+                         "DSTO",
+                         "MMEA",
+                         "MCAV",
+                         "OANN",
+                         "OFAV",
+                         "OFRA"))
+
+# Remove the locations we do not want
+fk_sctld_filtered <- fk_sctld_filtered %>%
+  filter(!sitename %in% c("Content Keys", "Smith Shoal", "Jaap Reef"))
+```
+
+
+## Create four different data frames: lower keys (LK), middle keys (MK), upper keys (UK), and Dry Tortugas (DT)
+
+```{r}
+# Create the lower keys data frame
+lower_sctld <- fk_sctld_filtered %>%
+  filter(subRegionId == "LK")
+
+# Create the middle keys data frame
+middle_sctld <- fk_sctld_filtered %>%
+  filter(subRegionId == "MK")
+
+# Create the upper keys data frame
+upper_sctld <- fk_sctld_filtered %>%
+  filter(subRegionId == "UK")
+
+# Create the dry tortugas data frame
+dt_sctld <- fk_sctld_filtered %>%
+  filter(subRegionId == "DT")
+```
+
+
+## Check that there are the correct number of sites for each region:
+
+```{r}
+# Find the number of unique sites
+sort(unique(lower_sctld$sitename))
+```
+```{r}
+# Find the number of unique sites
+sort(unique(middle_sctld$sitename))
+```
+```{r}
+# Find the number of unique sites
+sort(unique(upper_sctld$sitename))
+```
+
+```{r}
+# Find the number of unique sites
+sort(unique(dt_sctld$sitename)) # We need to remove Palmata Patch and White Shoal
+```
+- We appear to be missing information on 'Carysfort Shallow', and so our total number of sites for the Florida Keys is 36 instead of 37. For the Dry Tortugas, we have two more locations than expected (White Shoals and Palmata Patch), so these will be filtered out.
+
+## Remove extra Dry Tortugas Sites
+
+```{r}
+# Filter out White Shoals and Palmata Patch
+dt_sctld <- dt_sctld %>%
+  filter(!sitename %in% c("White Shoal", "Palmata Patch"))
+```
+
+
+## Count the number of sctld observations per year
+
+```{r}
+# Count the number of sctld per year for the lower keys
+annual_sctld_lk <- lower_sctld %>%
+  filter(SampleYear > 2011) %>%
+  group_by(SampleYear) %>%
+  summarise(
+    Counts_SCTLD = sum(SumOfDOB, na.rm = TRUE),
+    Counts_AnyDisease = sum(SumOfAnyDisease, na.rm = TRUE),
+    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
+    Disease_percent = (Counts_AnyDisease / Total_Coral_Counts) * 100,
+    .groups = "drop"
+  )
+```
+
+```{r}
+# Count the number of sctld per year for the lower keys
+annual_sctld_mk <- middle_sctld %>%
+  filter(SampleYear > 2011) %>%
+  group_by(SampleYear) %>%
+  summarise(
+    Counts_SCTLD = sum(SumOfDOB, na.rm = TRUE),
+    Counts_AnyDisease = sum(SumOfAnyDisease, na.rm = TRUE),
+    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
+    Disease_percent = (Counts_AnyDisease / Total_Coral_Counts) * 100,
+    .groups = "drop"
+  )
+```
+
+```{r}
+# Count the number of sctld per year for the lower keys
+annual_sctld_uk <- upper_sctld %>%
+  filter(SampleYear > 2011) %>%
+  group_by(SampleYear) %>%
+  summarise(
+    Counts_SCTLD = sum(SumOfDOB, na.rm = TRUE),
+    Counts_AnyDisease = sum(SumOfAnyDisease, na.rm = TRUE),
+    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
+    Disease_percent = (Counts_AnyDisease / Total_Coral_Counts) * 100,
+    .groups = "drop"
+  )
+```
+
+```{r}
+# Count the number of sctld per year for the lower keys
+annual_sctld_dt <- dt_sctld %>%
+  filter(SampleYear > 2011) %>%
+  group_by(SampleYear) %>%
+  summarise(
+    Counts_SCTLD = sum(SumOfDOB, na.rm = TRUE),
+    Counts_AnyDisease = sum(SumOfAnyDisease, na.rm = TRUE),
+    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
+    Disease_percent = (Counts_AnyDisease / Total_Coral_Counts) * 100,
+    .groups = "drop"
+  )
+```
+
+
+# Southeastern Florida:
+
+## Filter to our 9 species of interest
+
+```{r}
+# Find the unique species IDs to ensure no typos or spp. observations
+unique(sf_sctld$SPP_CODE)
+
+# Pull out any species we are not interested in
+sf_sctld_filtered <- sf_sctld %>%
+  filter(SPP_CODE %in% c("CNAT",
+                         "DLAB",
+                         "PSTR",
+                         "DSTO",
+                         "MMEA",
+                         "MCAV",
+                         "OANN",
+                         "OFAV",
+                         "OFRA"))
+
+# Remove the locations we do not want
+sf_sctld_filtered <- sf_sctld_filtered %>%
+  filter(sitename %in% c("Broward County 1",
+                         "Broward County 2",
+                         "Broward County 3",
+                         "Broward County 4",
+                         "Broward County 5",
+                         "Broward County 6",
+                         "Dade County 1",
+                         "Dade County 2",
+                         "Dade County 3",
+                         "Dade County 4",
+                         "Dade County 5",
+                         "Dade County 6",
+                         "Dade County 7",
+                         "Dade County 8"))
+```
+
+
+```{r}
+# Check to ensure only the sites we specified are included in our results
+sort(unique(sf_sctld_filtered$sitename))
+```
+
+## Summarize the Southeastern Florida Data
+
+```{r}
+# Count the number of sctld per year for the lower keys
+annual_sctld_sf <- sf_sctld_filtered %>%
+  group_by(SampleYear) %>%
+  summarise(
+    Counts_SCTLD = sum(SumOfWPL, na.rm = TRUE),
+    Counts_AnyDisease = sum(SumOfAnyDisease, na.rm = TRUE),
+    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
+    Disease_percent = (Counts_AnyDisease / Total_Coral_Counts) * 100,
+    .groups = "drop"
+  )
+```
+
+
+# Exporting the results as a .xlsx file
+
+```{r}
+# Create workbook
+wb <- createWorkbook()
+
+# Add each dataframe as a sheet
+addWorksheet(wb, "Southeastern Florida")
+writeData(wb, "Southeastern Florida", annual_sctld_sf)
+
+addWorksheet(wb, "Upper Keys")
+writeData(wb, "Upper Keys", annual_sctld_uk)
+
+addWorksheet(wb, "Middle Keys")
+writeData(wb, "Middle Keys", annual_sctld_mk)
+
+addWorksheet(wb, "Lower Keys")
+writeData(wb, "Lower Keys", annual_sctld_lk)
+
+addWorksheet(wb, "Dry Tortugas")
+writeData(wb, "Dry Tortugas", annual_sctld_dt)
+
+# Save the file
+saveWorkbook(wb, "SCTLD_Annual_Summaries.xlsx", overwrite = TRUE)
+```
+
+
+
