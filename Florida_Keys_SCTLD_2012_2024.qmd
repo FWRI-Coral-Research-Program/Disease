@@ -15,14 +15,12 @@ editor: visual
 
 In this script, we will be summarizing the observations of colonies with Stony Coral Tissue Loss Disease (SCTLD) from 2012 to 2024. A
 
-
 ## Import packages
 
 ```{r}
 # Using librarian::shelf to import many libraries at once
 librarian::shelf(tidyverse, dplyr, here, readxl, purrr, openxlsx)
 ```
-
 
 ## Read in the files from Microsoft Access
 
@@ -43,19 +41,19 @@ sf_sctld <- read_excel("C:/Users/Madison.Enda/Desktop/Microsoft_Access_Files/zzz
 fk_sctld_filtered <- fk_sctld %>%
   filter(SPP_CODE %in% c("CNAT",
                          "DLAB",
-                         "PSTR",
+                         "DSTR",
                          "DSTO",
                          "MMEA",
                          "MCAV",
-                         "OANN",
-                         "OFAV",
-                         "OFRA"))
+                         "MANN",
+                         "MFAV",
+                         "MFRA",
+                         "MANNc"))
 
 # Remove the locations we do not want
 fk_sctld_filtered <- fk_sctld_filtered %>%
   filter(!sitename %in% c("Content Keys", "Smith Shoal", "Jaap Reef"))
 ```
-
 
 ## Create four different data frames: lower keys (LK), middle keys (MK), upper keys (UK), and Dry Tortugas (DT)
 
@@ -77,17 +75,18 @@ dt_sctld <- fk_sctld_filtered %>%
   filter(subRegionId == "DT")
 ```
 
-
 ## Check that there are the correct number of sites for each region:
 
 ```{r}
 # Find the number of unique sites
 sort(unique(lower_sctld$sitename))
 ```
+
 ```{r}
 # Find the number of unique sites
 sort(unique(middle_sctld$sitename))
 ```
+
 ```{r}
 # Find the number of unique sites
 sort(unique(upper_sctld$sitename))
@@ -97,7 +96,8 @@ sort(unique(upper_sctld$sitename))
 # Find the number of unique sites
 sort(unique(dt_sctld$sitename)) # We need to remove Palmata Patch and White Shoal
 ```
-- We appear to be missing information on 'Carysfort Shallow', and so our total number of sites for the Florida Keys is 36 instead of 37. For the Dry Tortugas, we have two more locations than expected (White Shoals and Palmata Patch), so these will be filtered out.
+
+-   We appear to be missing information on 'Carysfort Shallow', and so our total number of sites for the Florida Keys is 36 instead of 37. For the Dry Tortugas, we have two more locations than expected (White Shoals and Palmata Patch), so these will be filtered out.
 
 ## Remove extra Dry Tortugas Sites
 
@@ -106,7 +106,6 @@ sort(unique(dt_sctld$sitename)) # We need to remove Palmata Patch and White Shoa
 dt_sctld <- dt_sctld %>%
   filter(!sitename %in% c("White Shoal", "Palmata Patch"))
 ```
-
 
 ## Count the number of sctld observations per year
 
@@ -170,7 +169,6 @@ annual_sctld_dt <- dt_sctld %>%
   )
 ```
 
-
 # Southeastern Florida:
 
 ## Filter to our 9 species of interest
@@ -183,13 +181,14 @@ unique(sf_sctld$SPP_CODE)
 sf_sctld_filtered <- sf_sctld %>%
   filter(SPP_CODE %in% c("CNAT",
                          "DLAB",
-                         "PSTR",
+                         "DSTR",
                          "DSTO",
                          "MMEA",
                          "MCAV",
-                         "OANN",
-                         "OFAV",
-                         "OFRA"))
+                         "MANN",
+                         "MFAV",
+                         "MFRA",
+                         "MANNc"))
 
 # Remove the locations we do not want
 sf_sctld_filtered <- sf_sctld_filtered %>%
@@ -208,7 +207,6 @@ sf_sctld_filtered <- sf_sctld_filtered %>%
                          "Dade County 7",
                          "Dade County 8"))
 ```
-
 
 ```{r}
 # Check to ensure only the sites we specified are included in our results
@@ -229,6 +227,107 @@ annual_sctld_sf <- sf_sctld_filtered %>%
     Disease_percent = (Counts_AnyDisease / Total_Coral_Counts) * 100,
     .groups = "drop"
   )
+```
+
+## Create species specific tables
+
+```{r}
+# Group together the Orbicella spp. categories in FK
+fk_sctld_filtered <- fk_sctld_filtered %>%
+  mutate(
+    SPP_CODE = if_else(
+      SPP_CODE %in% c("MANN", "MFAV", "MFRA", "MANNc"),
+      "ORBI",
+      SPP_CODE
+    )
+  )
+
+# Group together the Orbicella spp. categories in SE FL
+sf_sctld_filtered <- sf_sctld_filtered %>%
+  mutate(
+    SPP_CODE = if_else(
+      SPP_CODE %in% c("MANN", "MFAV", "MFRA", "MANNc"),
+      "ORBI",
+      SPP_CODE
+    )
+  )
+
+# For fk_sctld_filtered: use SumOfDOB
+fk_sctld_filtered <- fk_sctld_filtered %>%
+  mutate(
+    SCTLD_source = if_else(subRegionId %in% c("UK", "LK", "MK", "DT"),
+                           SumOfDOB,
+                           0)  # 0 for rows in DC/BC
+  )
+
+# For sf_sctld_filtered: use SumOfWPL 
+sf_sctld_filtered <- sf_sctld_filtered %>%
+  mutate(
+    SCTLD_source = if_else(subRegionId %in% c("DC", "BC"),
+                           SumOfWPL,
+                           0)  # 0 for rows outside DC/BC
+  )
+```
+
+## Combine data frames and summarize species info
+
+```{r}
+# Combine data
+combined_species <- bind_rows(fk_sctld_filtered, sf_sctld_filtered)
+
+# Create annual counts by species of sctld
+annual_sctld_species <- combined_species %>%
+  filter(SampleYear > 2011) %>%
+  group_by(SampleYear, SPP_CODE) %>%
+  summarise(
+    Counts_SCTLD = sum(SCTLD_source, na.rm = TRUE),
+    Counts_AnyDisease = sum(SumOfAnyDisease, na.rm = TRUE),
+    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    SCTLD_percent = if_else(
+      Total_Coral_Counts > 0,
+      (Counts_SCTLD / Total_Coral_Counts) * 100,
+      NA_real_
+    ),
+    Disease_percent = if_else(
+      Total_Coral_Counts > 0,
+      (Counts_AnyDisease / Total_Coral_Counts) * 100,
+      NA_real_
+    ),
+    .groups = "drop"
+  )
+```
+
+
+## Creating separate species tables for sctld totals
+
+```{r}
+# Create separate tables for each species
+CNAT <- annual_sctld_species %>%
+  filter(SPP_CODE == "CNAT")
+
+# Create separate tables for each species
+DLAB <- annual_sctld_species %>%
+  filter(SPP_CODE == "DLAB")
+
+# Create separate tables for each species
+PSTR <- annual_sctld_species %>%
+  filter(SPP_CODE == "DSTR")
+
+# Create separate tables for each species
+DSTO <- annual_sctld_species %>%
+  filter(SPP_CODE == "DSTO")
+
+# Create separate tables for each species
+MMEA <- annual_sctld_species %>%
+  filter(SPP_CODE == "MMEA")
+
+# Create separate tables for each species
+MCAV <- annual_sctld_species %>%
+  filter(SPP_CODE == "MCAV")
+
+# Create separate tables for each species
+ORBI <- annual_sctld_species %>%
+  filter(SPP_CODE == "ORBI")
 ```
 
 
@@ -254,9 +353,27 @@ writeData(wb, "Lower Keys", annual_sctld_lk)
 addWorksheet(wb, "Dry Tortugas")
 writeData(wb, "Dry Tortugas", annual_sctld_dt)
 
+addWorksheet(wb, "CNAT")
+writeData(wb, "CNAT", CNAT)
+
+addWorksheet(wb, "DLAB")
+writeData(wb, "DLAB", DLAB)
+
+addWorksheet(wb, "DSTO")
+writeData(wb, "DSTO", DSTO)
+
+addWorksheet(wb, "MCAV")
+writeData(wb, "MCAV", MCAV)
+
+addWorksheet(wb, "MMEA")
+writeData(wb, "MMEA", MMEA)
+
+addWorksheet(wb, "ORBI")
+writeData(wb, "ORBI", ORBI)
+
+addWorksheet(wb, "PSTR")
+writeData(wb, "PSTR", PSTR)
+
 # Save the file
 saveWorkbook(wb, "SCTLD_Annual_Summaries.xlsx", overwrite = TRUE)
 ```
-
-
-
