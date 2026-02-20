@@ -1,9 +1,10 @@
 ---
-title: "Florida_Keys_SCTLD_2012_2024"
+title: "SCTLD_2012_2024"
 author: "Maddy Enda"
 format: html
 editor: visual
 ---
+
 
 # Stony Coral Tissue Loss Disease: Florida Keys National Marine Sanctuary, Dry Tortugas National Park, and Southeastern Florida
 
@@ -26,10 +27,10 @@ librarian::shelf(tidyverse, dplyr, here, readxl, purrr, openxlsx)
 
 ```{r}
 # Use read_excel() to load in the fknms data on sctld
-fk_sctld <- read_excel("C:/Users/Madison.Enda/Desktop/Microsoft_Access_Files/fFKNMS_ColoniesConditions_NoTemplate.xlsx")
+fk_sctld <- read_excel("C:/Users/Madison.Enda/Desktop/Microsoft_Access_Files/z_Colonies.xlsx")
 
 # Use read_excel() to load in the files on southeastern florida sctld
-sf_sctld <- read_excel("C:/Users/Madison.Enda/Desktop/Microsoft_Access_Files/zzz_ColoniesConditions_NoTemplate.xlsx")
+sf_sctld <- read_excel("C:/Users/Madison.Enda/Desktop/Microsoft_Access_Files/SEFL_Colonies.xlsx")
 ```
 
 # Florida Keys and Dry Tortugas:
@@ -55,10 +56,25 @@ fk_sctld_filtered <- fk_sctld_filtered %>%
   filter(!sitename %in% c("Content Keys", "Smith Shoal", "Jaap Reef"))
 ```
 
-## Create a SumOfAllDisease column
+
+## Create a UNK_DIS & SumOfAllDisease column
 
 ```{r}
-# Create a column for tissue loss and mortality combined
+# Create a list of disease and condition columns
+condition_cols <- c("BLH", "PBL", "PAL", "AnyBleaching", "BLH+PBL", "BBD", "WBD", "WPX", "WPL", "DSD", "DOB", "RTL", "RBD", "YBD", "AnyDisease", "SKA", "CLN", "CDL", "PRD", "DAM", "OUT")
+
+
+# Create our UNK_DIS column
+fk_sctld_filtered <- fk_sctld_filtered %>%
+  mutate(
+    UNK_DIS = if_else(
+      `%RECENT` > 0 &
+      UNK > 0 &
+      rowSums(across(all_of(condition_cols)) == 1) == 0,
+      1,
+      0
+    )
+  )
 ```
 
 
@@ -66,7 +82,7 @@ fk_sctld_filtered <- fk_sctld_filtered %>%
 # Create our SumofAllDisease column
 fk_sctld_filtered <- fk_sctld_filtered %>%
   mutate(SumOfAllDisease = rowSums(
-    select(., SumOfDSD, SumOfDOB, SumOfWPL, SumOfWPX, SumOfBBD, SumOfWBD, SumOfRBD, SumOfYBD, SumOfRTL), # replace with your disease columns
+    select(., DSD, DOB, WPL, WPX, BBD, WBD, RBD, YBD, RTL, UNK_DIS), # replace with your disease columns
     na.rm = TRUE
   ))
 ```
@@ -131,9 +147,9 @@ annual_sctld_lk <- lower_sctld %>%
   filter(SampleYear > 2011) %>%
   group_by(SampleYear) %>%
   summarise(
-    Counts_SCTLD = sum(SumOfDOB, na.rm = TRUE),
+    Counts_SCTLD = sum(DOB, na.rm = TRUE),
     Counts_AllDisease = sum(SumOfAllDisease, na.rm = TRUE),
-    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    Total_Coral_Counts = n(),
     SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
     Disease_percent = (Counts_AllDisease / Total_Coral_Counts) * 100,
     .groups = "drop"
@@ -146,9 +162,9 @@ annual_sctld_mk <- middle_sctld %>%
   filter(SampleYear > 2011) %>%
   group_by(SampleYear) %>%
   summarise(
-    Counts_SCTLD = sum(SumOfDOB, na.rm = TRUE),
+    Counts_SCTLD = sum(DOB, na.rm = TRUE),
     Counts_AllDisease = sum(SumOfAllDisease, na.rm = TRUE),
-    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    Total_Coral_Counts = n(),
     SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
     Disease_percent = (Counts_AllDisease / Total_Coral_Counts) * 100,
     .groups = "drop"
@@ -161,9 +177,9 @@ annual_sctld_uk <- upper_sctld %>%
   filter(SampleYear > 2011) %>%
   group_by(SampleYear) %>%
   summarise(
-    Counts_SCTLD = sum(SumOfDOB, na.rm = TRUE),
+    Counts_SCTLD = sum(DOB, na.rm = TRUE),
     Counts_AllDisease = sum(SumOfAllDisease, na.rm = TRUE),
-    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    Total_Coral_Counts = n(),
     SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
     Disease_percent = (Counts_AllDisease / Total_Coral_Counts) * 100,
     .groups = "drop"
@@ -176,9 +192,9 @@ annual_sctld_dt <- dt_sctld %>%
   filter(SampleYear > 2011) %>%
   group_by(SampleYear) %>%
   summarise(
-    Counts_SCTLD = sum(SumOfDOB, na.rm = TRUE),
+    Counts_SCTLD = sum(DOB, na.rm = TRUE),
     Counts_AllDisease = sum(SumOfAllDisease, na.rm = TRUE),
-    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    Total_Coral_Counts =n(),
     SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
     Disease_percent = (Counts_AllDisease / Total_Coral_Counts) * 100,
     .groups = "drop"
@@ -229,13 +245,32 @@ sf_sctld_filtered <- sf_sctld_filtered %>%
 sort(unique(sf_sctld_filtered$sitename))
 ```
 
-## Create a SumOfAllDisease column
+## Create a UNK_DIS & SumOfAllDisease column
+
+```{r}
+# Create a list of disease and condition columns
+condition_cols <- c("BLH", "PBL", "PAL", "AnyBleaching", "BLH+PBL", "BBD", "WBD", "WPX", "WPL", "DSD", "RTL", "RBD", "YBD", "AnyDisease", "SKA", "CLN", "CDL", "PRD", "DAM", "OUT")
+
+
+# Create our UNK_DIS column
+sf_sctld_filtered <- sf_sctld_filtered %>%
+  mutate(
+    UNK_DIS = if_else(
+      `%RECENT` > 0 &
+      UNK > 0 &
+      rowSums(across(all_of(condition_cols)) == 1) == 0,
+      1,
+      0
+    )
+  )
+```
+
 
 ```{r}
 # Create our SumofAllDisease column
 sf_sctld_filtered <- sf_sctld_filtered %>%
   mutate(SumOfAllDisease = rowSums(
-    select(., SumOfDSD, SumOfWPL, SumOfWPX, SumOfBBD, SumOfWBD, SumOfRBD, SumOfYBD), # replace with your disease columns
+    select(., DSD, WPL, WPX, BBD, WBD, RBD, YBD, RTL, UNK_DIS), # replace with your disease columns
     na.rm = TRUE
   ))
 ```
@@ -247,9 +282,9 @@ sf_sctld_filtered <- sf_sctld_filtered %>%
 annual_sctld_sf <- sf_sctld_filtered %>%
   group_by(SampleYear) %>%
   summarise(
-    Counts_SCTLD = sum(SumOfWPL, na.rm = TRUE),
+    Counts_SCTLD = sum(WPL, na.rm = TRUE),
     Counts_AllDisease = sum(SumOfAllDisease, na.rm = TRUE),
-    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    Total_Coral_Counts = n(),
     SCTLD_percent = (Counts_SCTLD / Total_Coral_Counts) * 100,
     Disease_percent = (Counts_AllDisease / Total_Coral_Counts) * 100,
     .groups = "drop"
@@ -283,7 +318,7 @@ sf_sctld_filtered <- sf_sctld_filtered %>%
 fk_sctld_filtered <- fk_sctld_filtered %>%
   mutate(
     SCTLD_source = if_else(subRegionId %in% c("UK", "LK", "MK", "DT"),
-                           SumOfDOB,
+                           DOB,
                            0)  # 0 for rows in DC/BC
   )
 
@@ -291,7 +326,7 @@ fk_sctld_filtered <- fk_sctld_filtered %>%
 sf_sctld_filtered <- sf_sctld_filtered %>%
   mutate(
     SCTLD_source = if_else(subRegionId %in% c("DC", "BC"),
-                           SumOfWPL,
+                           WPL,
                            0)  # 0 for rows outside DC/BC
   )
 ```
@@ -302,19 +337,31 @@ sf_sctld_filtered <- sf_sctld_filtered %>%
 # Rename columns 
 fk_sctld_filtered <- fk_sctld_filtered %>%
   rename(fk_disease = SumOfAllDisease,
-         SumOfWhite_Plauge = SumOfWPL)
-
-sf_sctld_filtered <- sf_sctld_filtered %>%
-  rename(sf_disease = SumOfAllDisease,
-         SumOfDisease_Outbreak = SumOfDOB)
+         White_Plauge = WPL)
 
 # Combine data
 combined_species <- bind_rows(fk_sctld_filtered, sf_sctld_filtered)
 
+# Create a list of disease and condition columns
+condition_cols <- c("BLH", "PBL", "PAL", "AnyBleaching", "BLH+PBL", "BBD", "WBD", "WPX", "WPL", "White_Plauge", "DSD", "RTL", "RBD", "YBD", "AnyDisease", "SKA", "CLN", "CDL", "PRD", "DAM", "DOB", "OUT")
+
+
+# Create our UNK_DIS column
+combined_species <- combined_species %>%
+  mutate(
+    UNK_DIS = if_else(
+      `%RECENT` > 0 &
+      UNK > 0 &
+      rowSums(across(all_of(condition_cols)) == 1) == 0,
+      1,
+      0
+    )
+  )
+
 # Create the SumOfAllDisease column again
 combined_species<- combined_species %>%
   mutate(SumOfAllDisease = rowSums(
-    select(., SumOfDSD, SumOfDOB, SumOfWPX, SumOfWPL, SumOfBBD, SumOfWBD, SumOfRBD, SumOfYBD), # replace with your disease columns
+    select(., DSD, WPL, WPX, BBD, WBD, DOB, White_Plauge, RBD, YBD, RTL, UNK_DIS), # replace with your disease columns
     na.rm = TRUE
   ))
 
@@ -325,7 +372,7 @@ annual_sctld_species <- combined_species %>%
   summarise(
     Counts_SCTLD = sum(SCTLD_source, na.rm = TRUE),
     Counts_AllDisease = sum(SumOfAllDisease, na.rm = TRUE),
-    Total_Coral_Counts = sum(CountOfSPP_CODE, na.rm = TRUE),
+    Total_Coral_Counts = n(),
     SCTLD_percent = if_else(
       Total_Coral_Counts > 0,
       (Counts_SCTLD / Total_Coral_Counts) * 100,
